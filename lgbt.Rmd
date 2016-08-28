@@ -508,7 +508,7 @@ Seems to be yielding better results than the method used earlier. Any v 2.0 publ
 
 - Further analysis can certainly be done, by better data extraction. Currently the number of entries with spouses' names is approximately 19%, which can be improved through text analysis of "Personal Life" sections on the wiki pages, probably by searchng for proper nouns in some manner.
 
-You can find the code here - <> and please let me know in case someone might need the dataset; I shall try and provide the same.
+You can find the [code](https://github.com/prateek1592/Wikipedia-LGBT/blob/master/complete%20code.R) & [Rmd](https://github.com/prateek1592/Wikipedia-LGBT/blob/master/lgbt.Rmd) files on Github. Please let me know in case someone might need the dataset; I shall try and provide the same.
 
 Many thanks for reading. Cheers!
 
