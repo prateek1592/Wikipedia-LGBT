@@ -3,7 +3,7 @@ title: "(Not So) Straight From The Heart"
 output: html_document
 ---
 
-So, this is my first R project that I am publishing in the public domain. It is a *little* strange in the way it started and what the self-directed Q&A session has led to eventually.
+So, this is my first R project that I am publishing in the public domain. It is a *little* strange in the way it started and what the self-directed Q&A session has led to eventually....
 
 It all began a couple months back, when I was browsing through Sir Elton John's wiki page one fine day. I couldn't stop listening to [Tiny Dancer](https://www.youtube.com/watch?v=hoskDZRLOCs) at the time for days on end & was going through the listed discography to try & diversify the pool. I ended up, unsurprisingly, engrossed in the gossip section (AKA "Personal Life") scouting for juicy tidbits of [scandalous rockstar behaviour](http://www.cracked.com/article_18586_the-7-most-impossible-rock-stars-to-deal-with.html) that endear us mere mortals to them even more; While scanning through the section, I came to know that he had previously been involved with two women in his past, which came as a bit of a surprise for me since he is very open about his orientation at the moment. This got me thinking - "How many people open about their same-sex attractions have had similar stories to share?" (Yes, that is as good a "So what?" moment that you shall see from this analysis, in case someone was wondering. Ye have been warned!)
 
