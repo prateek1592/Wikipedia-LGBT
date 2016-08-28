@@ -1,0 +1,515 @@
+---
+title: "(Not So) Straight From The Heart"
+output: html_document
+---
+
+So, this is my first R project that I am publishing in the public domain. It is a *little* strange in the way it started and what the self-directed Q&A session has led to eventually.
+
+It all began a couple months back, when I was browsing through Sir Elton John's wiki page one fine day. I couldn't stop listening to [Tiny Dancer](https://www.youtube.com/watch?v=hoskDZRLOCs) at the time for days on end & was going through the listed discography to try & diversify the pool. I ended up, unsurprisingly, engrossed in the gossip section (AKA "Personal Life") scouting for juicy tidbits of [scandalous rockstar behaviour](http://www.cracked.com/article_18586_the-7-most-impossible-rock-stars-to-deal-with.html) that endear us mere mortals to them even more; While scanning through the section, I came to know that he had previously been involved with two women in his past, which came as a bit of a surprise for me since he is very open about his orientation at the moment. This got me thinking - "How many people open about their same-sex attractions have had similar stories to share?" (Yes, that is as good a "So what?" moment that you shall see from this analysis, in case someone was wondering. Ye have been warned!)
+
+At the outset, I was pretty clear that this was not one of those "value-additive" projects that will model consumer behavour or stock prices and make anyone any moolah. But, it just seemed like a valid thing to do consistent with some data practioners' beliefs - Set up question, find data that helps, make it "data-frame"able, analyze. Plus, I got to up my **Reg**ular **Ex**pression skills through some serious amount of text clean-ups!
+
+Ideally, it would have been good to have as granular a dataset as possible, and I thought of scouting for individual marriage records in any of the developed countries, which might have maintained such records systematically. However, [no luck](http://www.cdc.gov/nchs/nvss/marriage-divorce.htm). 
+
+A quick scan through wiki revealed a list of famous people "who have either been open about their sexuality or for which reliable sources exist."^1^ While this wasn't a bias-free set by any means, it seemed to fall in that sweet spot of being "within grasp" & "reasonably reliable" in the difficulty-relevance co-ordinate system.
+
+An idea took hold!
+
+```{r,comment="", message=F, warning=F}
+library(rvest)
+library(dplyr)
+library(stringr)
+library(babynames)
+library(reshape2)
+library(RColorBrewer)
+library(wordcloud)
+library(tm)
+library(NLP)
+library(ggplot2)
+library(RCurl)
+library(combinat)
+library(RWeka)
+library(ngram)
+library(XML)
+
+# Defining a list to include functionality of 
+# returning multiple arguments from a function
+# Ref: https://stat.ethz.ch/pipermail/r-help/2004-June/053343.html
+
+list <- structure(NA,class="result")
+"[<-.result" <- function(x,...,value) {
+  args <- as.list(match.call())
+  args <- args[-c(1:2,length(args))]
+  length(value) <- length(args)
+  for(i in seq(along=args)) {
+    a <- args[[i]]
+    if(!missing(a)) eval.parent(substitute(a <- v,list(a=a,v=value[[i]])))
+  }
+  x
+}
+
+url <- "https://en.wikipedia.org/wiki/List_of_gay,_lesbian_or_bisexual_people:_"
+l1 <- "A.Ba-Bh.Bi-Bz.C.D-E.F.G.H.I-J.K.L.M.N-O.P-Q.R.Sa-Sc.Sd-Si.Sj-Sz.T-V.W-Z"
+l1 <- strsplit(l1, split='\\.')[[1]]
+urls <- paste0(url, l1)
+
+
+# Applying a function to extract data tables from each URL
+data <- lapply(urls, function(x) {
+   temp <- x %>% read_html %>% html_nodes("table")
+   indx <- grep("wikitable sortable",temp)
+   
+   for (j in seq_along(indx)){
+     if (j==1){
+       mat <- html_table(temp[indx[j]], fill=T)[[1]][,1:5]
+     }
+     else {
+       mat2 <- html_table(temp[indx[j]], fill=T)[[1]][,1:5]
+       mat <- rbind(mat,mat2)
+     }
+   }
+   names(mat) <- gsub("\\[[^\\]]*\\]","",names(mat))
+   return(mat)
+})
+```
+
+The urls were accessed & read-in in through the excellent [rvest](http://www.rdocumentation.org/packages/rvest) package that finds good use in web-scraping applications. Do have a look.
+
+At this point, a list of ~20 elements, each containing a data frame with 5 columns is present. As you can see, the 5 columns we have are namely *Name*, *Lifetime*, *Nationality*, *Notable as* & (presumably) their *Sexual orientation*.
+One more thing that seems clear is a lot of formatting and cleaning work up ahead; with *Name* clearly having repetitions within entries, *Lifetime* having strange characters & *Notes* filled with citation notes. To clean up the data and for general user-friendliness, we convert the list to a data frame, binding all the frames one below the other.
+
+```{r, comment=""}
+data <- do.call(rbind,data)
+data[c(6,9),]
+```
+
+Easier to view, but lots of accented, non-numeric as well as non-alphabetic characters remain. To the cleaners! Dealing first with the Lifetime variable.
+
+![*Go Slow. "Code" ahead is rough!*](slipperyroad.png)
+
+```{r,comment=""}
+list1 <- list(data$Lifetime,data$Notes)
+list1 <- lapply(list1, function(x) gsub("\\[[^\\]]*\\]", "", x))
+
+# Utilising the previously defined "list" class
+list[data$Lifetime, data$Notes] <- list1
+
+# Cleaning up the values through case-by-case 
+# removal/substitution of non-relevant characters
+data$Lifetime <- gsub(" !b.*", "", data$Lifetime)
+data$Lifetime <- gsub(".*!","",data$Lifetime)
+data$Lifetime <- gsub("/.*-","-",data$Lifetime)
+data$Lifetime <- gsub("-","-",data$Lifetime)
+data$Lifetime <- gsub("/.*","",data$Lifetime)
+data$Lifetime <- gsub("c.","",data$Lifetime)
+data$Lifetime <- gsub("d. ","-",data$Lifetime)
+data$Lifetime <- gsub("b.","",data$Lifetime)
+data$Lifetime <- gsub("p.","",data$Lifetime)
+data$Lifetime <- gsub("BCE","",data$Lifetime)
+data$Lifetime <- gsub("BC","",data$Lifetime)
+data$Lifetime <- gsub("AD","",data$Lifetime)
+data$Lifetime <- gsub("CE","",data$Lifetime)
+data$Lifetime <- gsub("E","",data$Lifetime)
+data$Lifetime <- gsub("B. ?","",data$Lifetime)
+data$Lifetime <- gsub("\\?","",data$Lifetime)
+data$Lifetime <- gsub("\\..*","",data$Lifetime)
+data$Lifetime <- gsub(" ","",data$Lifetime)
+data$Lifetime <- gsub("\n.*","",data$Lifetime)
+data$Lifetime <- gsub("([A-Za-z])","",data$Lifetime)
+data$Lifetime <- gsub("^0$","",data$Lifetime)
+data$Lifetime <- gsub(" ","",data$Lifetime)
+
+head(data$Lifetime)
+```
+
+The unicode character shows up while knitting the document; It's the "start of the guarded area" character that actually looks like a hyphen. Unable to get rid of the same; suggestions welcome.
+
+I make plentiful use of the *gsub* function and general regex operations; A more concise way would probably be to use the *gsubfn* function in its stead.
+
+Some more cleaning follows. This time, the names.
+
+```{r,comment=""}
+unwanted_array = list('S'='S', 's'='s', 'Z'='Z', 'z'='z', 'À'='A', 'Á'='A', 'Â'='A', 'Ã'='A', 'Ä'='A', 'Å'='A', 'Æ'='A', 'Ç'='C', 'È'='E', 'É'='E',
+                      'Ê'='E', 'Ë'='E', 'Ì'='I', 'Í'='I', 'Î'='I', 'Ï'='I', 'Ñ'='N', 'Ò'='O', 'Ó'='O', 'Ô'='O', 'Õ'='O', 'Ö'='O', 'Ø'='O', 'Ù'='U',
+                      'Ú'='U', 'Û'='U', 'Ü'='U', 'Ý'='Y', 'Þ'='B', 'ß'='Ss', 'à'='a', 'á'='a', 'â'='a', 'ã'='a', 'ä'='a', 'å'='a', 'æ'='a', 'ç'='c',
+                      'è'='e', 'é'='e', 'ê'='e', 'ë'='e', 'ì'='i', 'í'='i', 'î'='i', 'ï'='i', 'ð'='o', 'ñ'='n', 'ò'='o', 'ó'='o', 'ô'='o', 'õ'='o',
+                      'ö'='o', 'ø'='o', 'ù'='u', 'ú'='u', 'û'='u', 'ý'='y', 'ý'='y', 'þ'='b', 'ÿ'='y', 'û'='u',
+                      'ü'='u', 'ð'='d')
+
+# A more concise way for gsub when
+# sequential substitution is not required
+data$Name <- chartr(paste(names(unwanted_array), collapse=''),
+                    paste(unwanted_array, collapse=''),data$Name)
+data$Name <- gsub(".*!","",data$Name)
+data$Name <- gsub("([.])|[[:punct:]]","\\1",data$Name)
+data$Name <- gsub("(aka).*","",data$Name)
+data$Name <- gsub('([[:upper:]])', ' \\1', data$Name)
+data$Name <- gsub("<[^>]*>","",data$Name)
+data$Name <- unlist(lapply(data$Name,function(x)paste(unique(strsplit(
+                    x," ")[[1]]),collapse=" ")))
+data$Name <- gsub("^\\s+|\\s+$", "", data$Name)
+data$Name[6:9]
+```
+
+Now, the *Nationality* & the *Notes*. Some uniformity is needed since several words are used to refer to the same instance at several points. Additionally, *Notes* has some citation numericals & punctuations that need to be removed.
+
+```{r,comment=""}
+gi <- c("-","/", "born","USA","Romani ","United States","English")
+go <- c(" "," ","","American","Romanian ","American","British")
+names(go) <- gi
+data$Nationality <- str_replace_all(data$Nationality, go)
+data$Notes <- gsub('\\[.*?\\]',"",data$Notes)
+data$Notes <- gsub('\\.',"",data$Notes)
+data$Notes <- gsub("^\\s+|\\s+$", "", data$Notes)
+
+head(data[,c("Nationality","Notes")], 3)
+```
+
+So, there you go. The data is much cleaner now compared to when we started.
+Ok, let's look a bit at the frequencies of nationalities in our dataset.
+
+```{r,comment=""}
+data <- data[!duplicated(data$Name),]
+data$Nationality <- gsub("born","",data$Nationality)
+data$Nationality <- gsub("([[:punct:]])"," ",data$Nationality)
+data$Nationality <- strsplit(data$Nationality, " ")
+wordcloud(unlist(data$Nationality),max.words=100,colors=brewer.pal(8,"Dark2"))
+```
+
+The American nationality downright dominates. Note that this doesn't include only an American national but also instances like "Indian-American" or"American-born English" & so on. Also, the data could be inherently biased since well-documented histories might not be as easily available across the globe, especially in developing/under-developed countires.
+
+Now, another interesting data series we have is the profession of the persons, mentioned in the "Notable as" column. A quick scan of the column tells us that we need to organize the data a bit before doing the analysis, since most people have multiple claims to fame.
+
+```{r,comment=""}
+vocations <- unlist(strsplit(data$`Notable as`," "))
+vocations <- gsub("[^A-Za-z]","",vocations)
+vocations <- vocations[vocations!=""]
+vocations <- tolower(vocations)
+wordcloud(vocations,max.words=100,colors=brewer.pal(8,"Dark2"))
+```
+
+The results were mostly expected due to a general "fame bias" that certain professions, like acting, tend to have. As pointed out by a good friend, it would be hard to spot someone like, say, a banker in this list simply because that vocation doesn't demand the baring of personal lives to the world at large to an extent that professions like acting do.
+
+```{r,comment=""}
+length(data$Name[grep("politician|Politician", data$`Notable as`)])/nrow(data) * 100
+```
+
+Well, isn't **that** something!  Where I come from, it would be rare to find a politician open about homosexuality in general, much less his/her own sexuality. Let's see which country leads the polls here.
+
+```{r,comment=""}
+politician.data <- data$Nationality[grep("politician|Politician", data$`Notable as`)]
+wordcloud(unlist(politician.data),max.words=100,colors=brewer.pal(8,"Dark2"),random.order=F,random.color=F)
+```
+
+Comparing with the earlier *Nationality* plot, we can see that the Europeans' frequencies have increased relative to the other countries. Unfortunately, I haven't taken out any data (yet) that would help us check which countries have the highest proportion of politicans with alternate sexualities.
+
+Also, I thought it'd be interesting to see what "pairs" of vocations are mostly prevalent. Say, "musician actor" or "politican musician" (yeah, this one wasn't that high on the list!)
+
+```{r,comment=""}
+top <- plyr::count(vocations) %>% arrange(desc(freq)) %>% head(.,10)
+words_to_remove <- unique(vocations)
+words_to_remove <- words_to_remove[!grepl(paste("\\b",paste(top$x,collapse="\\b|\\b"),"\\b",sep=""),words_to_remove)]
+
+clean.up <- function(x) {
+  x <- removePunctuation(x)
+  x <- tolower(x)
+  x <- removeWords(x,stopwords("en"))
+  x <- removeWords(x,words_to_remove)
+  x <- gsub("[^A-Za-z]"," ",x)
+  x <- gsub("^\\s+|\\s+$", "", x)
+  return(x)
+}
+
+# Function to generate 2-grams
+ngramTokenizer <- function(x,n) {
+  unlist(lapply(ngrams(words(x), n), paste, collapse = " "), use.names =
+           FALSE)
+}
+
+corp <- Corpus(VectorSource(clean.up(data$`Notable as`)))
+tdm <- TermDocumentMatrix(corp, control = list(tokenize = function(x)
+                                ngramTokenizer(x,2),stopwords = TRUE))
+top.pairs <- data.frame(sort(rowSums(as.matrix(tdm)), decreasing=TRUE))
+names(top.pairs) <- "top.pairs"
+head(top.pairs)
+```
+
+Interestingly, the word *activist*, despite being #5 in the frequency table of vocations, shows up often in conjugation with the top 3 vocations. Could there be some correlation? I leave this to another day, since I am not quite sure how (and what!) to test right now regarding this.
+
+Next, I wanted to understand the gender characteristics of the data set. First order of business - getting the genders. So, it is pretty straightforward that if the *Notes* entry is an "L", she's a female, a "G" would represent a male; and if a "B"? Well, we need to guess!
+
+I use the comprehensive [babynames](https://cran.r-project.org/web/packages/babynames/babynames.pdf) dataset for that prediction. It provides all names that have at least 5 instances of usage, provided by Social Security Administration of the USA. The fun part is that US is quite a melting pot of cultures, names of other cultures are also quite likely to be prevalent in the set!
+
+```{r,comment=""}
+data.frame(babynames)[1:3,1:4]
+```
+
+For the prediction, a voting system is considered where the individual names of the person in question (say 3, for Billie Joe Armstrong - "Billie", "Joe" & "Armstrong") each get a vote (Democracy, y'all!) However, each word gets a different weight for its vote depending on how prevalent ("influential") it is in the *babynames* dataset (Damn, spoke too soon) The weights are to avoid rare names with really few instances like, and I quote, *Bj* or *Qynn* or *Myrt*, to affect gender prediction in case such a string might be a part of the individual's name.
+
+```{r,comment=""}
+namedf <- data.frame(acast(babynames,name ~ sex,sum,value.var = "n"))
+namedf$Name <- row.names(namedf)
+namedf <- namedf %>% mutate(score=M-F) %>% select(Name,score)
+namedf <- matrix(namedf$score,ncol=1,dimnames=list(namedf$Name,"score"))
+
+# The output of the function depends on the gender
+# allocated to each individual word in a name
+# along with the word's prevalence in the babynames set
+
+gendercheck <- function(name){
+  splts <- unlist(strsplit(name," "))
+  splts.score <- sapply(splts, function(x){
+    score <- try(namedf[x,],silent = T)
+    if(inherits(score,"try-error")) {score = 0}
+    return(score)
+  })
+  splts.score <- sum(splts.score)
+  splts.score <- ifelse(splts.score>0,"M",ifelse(splts.score<0,"F",0))
+  return(splts.score)
+}
+
+# Gender guessing only for cases where 
+# sexuality is listed as bi-sexual
+
+data$Sex <- NA
+for (i in 1:nrow(data)){
+  data$Sex[i]=ifelse(grepl("L",data$Notes[i]),"F",ifelse(
+                    grepl("G",data$Notes[i]),"M",gendercheck(data$Name[i])))
+}
+
+sum(data$Sex==0)/nrow(data)*100
+data <- data[-which(data$Sex==0),]
+```
+
+While predicting the gender, certain names came up wth no mentions in the babynames dataset. Only 12 such cases (~0.38% of total) were found, and hence eliminated.
+
+Henceforth in this article, it would be good to keep in mind that all mentions of genders & all statistics based on it will include a model estimation error from the above procedure.
+
+```{r,comment=""}
+# Trying to extract birthyear
+birthyear <- substr(data$Lifetime,1,4)
+birthyear[grep("[^0-9]",birthyear)] <- 0
+birthyear <- as.numeric(birthyear)
+birthyear[is.na(birthyear)] <- 0
+data$Birth <- birthyear
+
+sex.data <- data %>% subset(.,select=c(Notes,Sex))
+sex.data <- plyr::count(sex.data)
+sex.data$Notes <- gsub("^G$|^L$","G/L",sex.data$Notes)
+names(sex.data)[1] <- "Orientation"
+
+ggplot(sex.data, aes(x=Sex, y=freq, fill=Orientation)) +
+  geom_bar(stat="identity", position="fill",width=0.5) + 
+  labs(y = "Relative frequency")
+```
+
+Interesting to note that in this dataset, ~23% of women identify as being bisexual as compared to less than 7% for men (given that same-sex attractions exist). While searching for reasons online, I chanced upon a [study](http://www.asanet.org/sites/default/files/savvy/documents/press/pdfs/AM_2015_McClintock_News_Release_FINAL.pdf) detailing some similar findings (I'd like to say that I do not agree with the speculations/conjectures presented in it, but merely refer to the survey data contained within) However, do bear in mind that this data is clearly not a representative sample of the population at large, having been skewed with a "fame" bias as we talked about earlier, and thus, it is difficult to qualitatively infer something from this observation.
+
+In the next step, let's try and get information about the list of partners/spouses. The code chunk that follows is not optimal by far and in fact, is extremely slow. 
+
+It has a much faster and more consistent alternative that hit me later and which I have suggested in the lacunae at the end of the post.
+
+```{r, eval=F,comment=""}
+n <- nrow(data)
+links <- numeric(n)
+
+# Trial-and-error for getting wikipedia page link
+# Inefficient solution
+for (j in 1:n){
+  print(j)
+  nom <- data$Name[j]
+  mash <- unlist(strsplit(nom, split=" "))
+  if (length(mash)>3) {next}
+  con <- do.call(rbind,(permn(mash)))
+  con <- do.call(paste, c(data.frame(con),sep="_"))
+  for (i in seq_along(con)){
+    link = paste("https://en.wikipedia.org/wiki/",con[i],sep="")
+    if(url.exists(link)) {links[j]=link; break}
+  }
+}
+
+data$Link <- links
+partners <- numeric(n)
+
+# Opening link if exists & extracting
+# info from the infobox about the partners/spouses
+for (i in 1:n){
+  print(i)
+  if (data$Link[i]!=0){
+    temp <- data$Link[i] %>% 
+      read_html %>%
+      html_nodes("table")
+    indx <- grep("infobox", temp)[1]
+    if (!is.na(indx)){
+      infobox <- html_table(temp[indx],fill=T)
+      partner.indx <- grep("Partner|partner|spouse|Spouse",infobox[[1]][,1])[1]
+      if (!is.na(partner.indx)){partners[i] <- infobox[[1]][partner.indx,2]}
+    }
+  }
+}
+
+data$Partners <- partners
+```
+
+More clean-up.
+
+```{r, echo=F,comment=""}
+load(file="C:/Users/prateek/Downloads/Desktop/Acads/Analytics/WIkipedia - LGBT/data-knitr-v2.RData")
+```
+
+```{r,comment=""}
+partners <- data$Partners
+partners <- gsub("\\([^\\)]*\\)", "\n",partners)
+partners <- gsub("\\[[^\\]]*\\]", "",partners)
+partners <- gsub("\\b[a-z]+\\b","",partners)
+partners <- gsub("partner|Partner|children|child|none|Jr|
+                 divorced|deceased|separated", "",partners)
+partners <- gsub("([[:punct:]])", "",partners)
+partners <- gsub(" \n", "\n",partners)
+partners <- gsub("\\n+","\n",partners)
+partners <- gsub("\\d", "",partners)
+partners <- gsub("^\\s+","",partners)
+partners <- gsub("\\s+$","",partners)
+partners <- strsplit(partners, "\n|,")
+
+# Guessing gender of partners
+data$pgender <- NA
+for (i in 1:nrow(data)){
+  data$pgender[i] <- paste0(sapply(partners[[i]], function(x) {
+      x <- gsub("^\\s+|\\s+$","",x)
+      gendercheck(x)
+    }),collapse=",")
+}
+
+data[grepl(0,data$pgender),"pgender"] <- ""
+```
+
+The classification of the genders of the partners leads to some cases where no gender is assigned because the data for the names sometimes shows anomalous behaviour (eg. entries with nested brackets like *Jeffrey Richman (2003 (2003)-present)*) or has names probably not found in the babynames dataset. The code in its current form is not powerful enough to deal with formats like these. Ignoring the cases leads to a loss of 24 data points, which is OK. Another piece of information given alongwith the names is the date of marriage/divorce (if any occured). In the next step, I try to extract that info to see if I can find any patterns.
+
+All the marriage dates so obtained are stored in the **wbells** column name.
+
+```{r,comment=""}
+years <- lapply(data$Partners, function(x) {
+  temp <- regmatches(x, gregexpr("(?<=\\().*?(?=\\))", x, perl=T))[[1]]
+  temp <- gsub("\\D*(\\d+).*","\\1",temp)
+  temp <- gsub("\\D","",temp)
+  temp <- paste0(temp,collapse=",")
+  return(temp)
+})
+data$wbells <- years
+```
+
+Extracting data for people for whom we have extracted their spouses' details :
+
+```{r,comment=""}
+married.folk <- data %>% 
+  filter(pgender!="") %>% 
+  select(Name,Sex,pgender,wbells,Birth,Nationality,`Notable as`)
+married.folk$wbells <- gsub(",+",",",married.folk$wbells)
+
+# Comparing the individuals' genders with their partners.
+sex.list = c("M","F")
+for (i in 1:nrow(married.folk)){
+  other.sex <- setdiff(sex.list,married.folk$Sex[i])
+  married.folk$pgender[i] <- gsub(married.folk$Sex[i],"1",married.folk$pgender[i])
+  married.folk$pgender[i] <- gsub(other.sex,"0",married.folk$pgender[i])
+}
+
+commas <- function(x) {
+  temp <- gregexpr(",",x)
+  temp <- do.call(rbind,lapply(temp, function(y) {
+    f1 <- attr(y,"match.length")
+    f1 <- pmax(sum(f1),0)
+  }))
+  return(temp)
+}
+
+# If number of marriage years extracted is consistent
+# with number of partners (in case of errors in regex code)
+
+test <- married.folk %>% filter(wbells!="")
+test$wbells <- gsub("^,|,$","",test$wbells)
+num.partners <- do.call(cbind,lapply(test[,c("pgender","wbells")], commas))
+test <- test[num.partners[,1]==num.partners[,2],]
+test <- data.frame(splitstackshape::cSplit(test,c("wbells","pgender"),direction="long"))
+
+test$Nationality <- unlist(lapply(test$Nationality,paste0,collapse=","))
+
+filter1 <- plyr::count(test$Nationality)
+identities <- as.character(filter1[filter1$freq>10,"x"])
+
+test <- test[test$Nationality %in% c("American","Canadian","British"),]
+
+freq.table <- test %>% 
+  filter(pgender!=0,wbells>1950) %>%
+  select(Nationality,wbells) %>%
+  group_by(Nationality,wbells) %>%
+  count()
+
+ggplot(freq.table,aes(x=wbells,y=n)) + 
+  geom_line(aes(color=Nationality),size=1.2,linetype=1) +
+  scale_x_continuous(breaks=seq(1950,2016,4)) + 
+  labs(list(title = "Same-Sex Marriages", x = "Wedding Bells", y = "Instances"))
+```
+
+Those are some massive spikes in the American data, in 2008 and 2012-13. Further investigation needed!
+
+```{r,comment=""}
+test[test$wbells==2008 & test$Nationality=="American" & test$pgender==1,c("Name","Sex","Notable.as")]
+```
+
+Interesting. Most professions listed for these criteria are typically from **Hollywood**. A google search yields that same-sex marraige was actually legal in California for ~6 months during 2008 before the decision was overturned; Voila, a victory for Captain Obvious! :D
+
+Similar situations were also observed for Canada, where territories/provinces started recongnizing same-sex marriages in 2003 beginning with Ontario upto 2005 by which time the whole country had legally recognized them.
+
+So, finally - coming back to the original question - How many of the people in our dataset were earlier in heterosexual marriages?
+
+```{r,comment=""}
+hetero.sexual <- married.folk[commas(married.folk$pgender)>0,]
+hetero.sexual <- hetero.sexual %>% 
+  filter(substr(pgender,nchar(pgender),nchar(pgender))=="1") %>%
+  filter(grepl("0",pgender))
+paste(nrow(hetero.sexual)," / ",nrow(married.folk), " = ", round(nrow(hetero.sexual)/nrow(married.folk),2),sep="")
+```
+
+Quite the anti-climatic moment I guess. Just a few people (~3%) fit into the category chalked out by our original line of questioning. Well, no issues!
+
+Now that I am done coding and it's real late in the night, I'd just like to conclude with a few lacunae :
+
+- In this analysis, the way of accessing the info from individual pages has scope for improvement, that I can't currently guess. This is the case since the pages' URLs too have been estimated through a combination of the given names; In cases where [namefellows](http://english.stackexchange.com/a/54520) have wikipedia pages, our information is as good as a good ol' bout of Russian Roulette. 
+**Postscript** : A workaround that I could find (much later!) was the use of htmlTreeParse() as demonstarted [here](http://stackoverflow.com/a/27297785/5908050) that I try to fit to our problem below -
+
+```{r,comment=""}
+temp <- urls[1] %>% read_html %>% html_nodes("table")
+indx <- grep("wikitable sortable",temp)
+
+getLinks <- function() {
+  links <- character()
+  list(a = function(node, ...) {
+    links <<- c(links, xmlGetAttr(node, "href"))
+    node
+  },
+  links = function() links)
+}
+h1 <- getLinks()
+
+temp <- htmlParse(temp[[indx]], handlers = h1)
+url.lnks <- h1$links()
+url.lnks <- unique(url.lnks)
+url.lnks <- url.lnks[grep("#",url.lnks) + 1]
+url.lnks <- url.lnks[!grepl("#",url.lnks)]
+url.lnks <- url.lnks[!is.na(url.lnks)]
+head(url.lnks)
+```
+
+Seems to be yielding better results than the method used earlier. Any v 2.0 published for this post will have this feature included.
+
+- Gender guessing of our main cast as well as their significant others was done through an algorithm with a decent scope for error, especially when unisex names like "Jean" would show up in the analysis. There might be scope for improvement here through inclusion of birth years maybe?
+
+- Further analysis can certainly be done, by better data extraction. Currently the number of entries with spouses' names is approximately 19%, which can be improved through text analysis of "Personal Life" sections on the wiki pages, probably by searchng for proper nouns in some manner.
+
+You can find the code here - <> and please let me know in case someone might need the dataset; I shall try and provide the same.
+
+Many thanks for reading. Cheers!
+
+^1^ <https://en.wikipedia.org/wiki/List_of_gay,_lesbian_or_bisexual_people>
