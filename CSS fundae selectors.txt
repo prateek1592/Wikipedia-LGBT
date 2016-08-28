@@ -1,0 +1,42 @@
+http://flukeout.github.io/#
+
+1) "div" selects elements of type "<div>"
+2) #cool will select elements with id="cool"
+   ul#long will select <ul id="long"> (ul -> class)
+3) p strong will select all <strong> that are descendants of any <p>
+   #fancy span will select any <span> that is a descendant of any element with id="fancy"
+4) .neato selects all elements with class="neato"
+5) ul.important will select all <ul> elements that have class="important"
+   #big.wide will select all elements with id="big" that also have class="wide"
+6) p strong.neato will select all elements of class ".neato" contained 
+   in <strong> that are descendants of <p>
+7) p, .fun will select all p elements as well as all elements with class="fun"
+   a, p, div will select all <a>, <p> and <div> elements
+8) * will select everything
+   p * will select every element inside all <p> elements.
+9) p + .intro will select every element with class="intro" that directly follows a <p>
+   div + a will select every <a> element that directly follows a <div>
+   IMPORTANT : Elements that follow one another are called siblings. They're on the same level, or depth. In HTML, elements that have the same indentation are siblings.
+10) A ~ B will select all (siblings) B that follow a A
+11) IMPORTANT: A child element is any element that is nested directly in another element.
+    Elements that are nested deeper than that are called descendant elements.
+	A > B will select all B that are a direct children A
+12) p:first-child selects all first child <p> elements.
+	div p:first-child selects all first child <p> elements that are in a <div>
+13) span:only-child selects the <span> elements that are the ONLY child of some other element
+    ul li:only-child selects <li> elements that are the ONLY childs, that are in a <ul>
+14) span:last-child selects all last-child <span> elements
+	ul li:last-child selects the last <li> elements inside of any <ul>
+15) :nth-child(8) selects any element that is the 8th child of another element
+	div p:nth-child(2) selects the second <p> in every <div>
+16) :nth-last-child(2) selects all second-to-last child elements
+17) span:first-of-type selects the first <span> in any element
+18) div:nth-of-type(2) selects the second instance of a div
+	.example:nth-of-type(odd) selects all odd instances of the <example> class span:nth-of-type(6n+2) selects every 6th instance of <span>, starting from (inclusive) of second instance
+19) plate apple.small:only-of-type selects all <apple> elements within <plate> with class="small"
+	and is the only-element-of-type\
+20) p span:last-of-type selects the last <span> in every <p>
+21) div:empty selects all empty <div> elements (i.e. the have no other elements inside them!)
+22) :not(#fancy) selects all elements that do not have id="fancy"
+	div:not(:first-child) selects every div that is not a first child
+	:not(.big, .medium) selects all elements that do not have class="big" or class="medium"
