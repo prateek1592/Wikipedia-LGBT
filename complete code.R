@@ -1,3 +1,6 @@
+# Please note that this code is best viewed in the blog post - https://rpubs.com/prateek1592/lgb
+# It has been written in a way so as to be a bit more explanatory than "best practice"
+
 library(rvest)
 library(dplyr)
 library(stringr)
@@ -65,8 +68,9 @@ list1 <- lapply(list1, function(x) gsub("\\[[^\\]]*\\]", "", x))
 # Utilising the previously defined "list" class
 list[data$Lifetime, data$Notes] <- list1
 
-# Cleaning up the values through case-by-case 
-# removal/substitution of non-relevant characters
+# Cleaning up the values through case-by-case removal/substitution of non-relevant characters
+# Need to do this, since the data required sequential subtitution.
+                
 data$Lifetime <- gsub(" !b.*", "", data$Lifetime)
 data$Lifetime <- gsub(".*!","",data$Lifetime)
 data$Lifetime <- gsub("/.*-","-",data$Lifetime)
@@ -90,17 +94,16 @@ data$Lifetime <- gsub("([A-Za-z])","",data$Lifetime)
 data$Lifetime <- gsub("^0$","",data$Lifetime)
 data$Lifetime <- gsub(" ","",data$Lifetime)
 
-head(data$Lifetime)
+# head(data$Lifetime)
 
-unwanted_array = list('S'='S', 's'='s', 'Z'='Z', 'z'='z', 'À'='A', 'Á'='A', 'Â'='A', 'Ã'='A', 'Ä'='A', 'Å'='A', 'Æ'='A', 'Ç'='C', 'È'='E', 'É'='E',
-                      'Ê'='E', 'Ë'='E', 'Ì'='I', 'Í'='I', 'Î'='I', 'Ï'='I', 'Ñ'='N', 'Ò'='O', 'Ó'='O', 'Ô'='O', 'Õ'='O', 'Ö'='O', 'Ø'='O', 'Ù'='U',
-                      'Ú'='U', 'Û'='U', 'Ü'='U', 'Ý'='Y', 'Þ'='B', 'ß'='Ss', 'à'='a', 'á'='a', 'â'='a', 'ã'='a', 'ä'='a', 'å'='a', 'æ'='a', 'ç'='c',
-                      'è'='e', 'é'='e', 'ê'='e', 'ë'='e', 'ì'='i', 'í'='i', 'î'='i', 'ï'='i', 'ð'='o', 'ñ'='n', 'ò'='o', 'ó'='o', 'ô'='o', 'õ'='o',
-                      'ö'='o', 'ø'='o', 'ù'='u', 'ú'='u', 'û'='u', 'ý'='y', 'ý'='y', 'þ'='b', 'ÿ'='y', 'û'='u',
-                      'ü'='u', 'ð'='d')
+unwanted_array = list('S'='S', 's'='s', 'Z'='Z', 'z'='z', 'Ã€'='A', 'Ã'='A', 'Ã‚'='A', 'Ãƒ'='A', 'Ã„'='A', 'Ã…'='A', 'Ã†'='A', 'Ã‡'='C', 'Ãˆ'='E', 'Ã‰'='E',
+                      'ÃŠ'='E', 'Ã‹'='E', 'ÃŒ'='I', 'Ã'='I', 'ÃŽ'='I', 'Ã'='I', 'Ã‘'='N', 'Ã’'='O', 'Ã“'='O', 'Ã”'='O', 'Ã•'='O', 'Ã–'='O', 'Ã˜'='O', 'Ã™'='U',
+                      'Ãš'='U', 'Ã›'='U', 'Ãœ'='U', 'Ã'='Y', 'Ãž'='B', 'ÃŸ'='Ss', 'Ã '='a', 'Ã¡'='a', 'Ã¢'='a', 'Ã£'='a', 'Ã¤'='a', 'Ã¥'='a', 'Ã¦'='a', 'Ã§'='c',
+                      'Ã¨'='e', 'Ã©'='e', 'Ãª'='e', 'Ã«'='e', 'Ã¬'='i', 'Ã­'='i', 'Ã®'='i', 'Ã¯'='i', 'Ã°'='o', 'Ã±'='n', 'Ã²'='o', 'Ã³'='o', 'Ã´'='o', 'Ãµ'='o',
+                      'Ã¶'='o', 'Ã¸'='o', 'Ã¹'='u', 'Ãº'='u', 'Ã»'='u', 'Ã½'='y', 'Ã½'='y', 'Ã¾'='b', 'Ã¿'='y', 'Ã»'='u',
+                      'Ã¼'='u', 'Ã°'='d')
 
-# A more concise way for gsub when
-# sequential substitution is not required
+# A more concise way for gsub when sequential substitution is not required
 data$Name <- chartr(paste(names(unwanted_array), collapse=''),
                     paste(unwanted_array, collapse=''),data$Name)
 data$Name <- gsub(".*!","",data$Name)
@@ -111,7 +114,7 @@ data$Name <- gsub("<[^>]*>","",data$Name)
 data$Name <- unlist(lapply(data$Name,function(x)paste(unique(strsplit(
   x," ")[[1]]),collapse=" ")))
 data$Name <- gsub("^\\s+|\\s+$", "", data$Name)
-data$Name[6:9]
+
 
 gi <- c("-","/", "born","USA","Romani ","United States","English")
 go <- c(" "," ","","American","Romanian ","American","British")
@@ -167,7 +170,7 @@ top.pairs <- data.frame(sort(rowSums(as.matrix(tdm)), decreasing=TRUE))
 names(top.pairs) <- "top.pairs"
 head(top.pairs)
 
-data.frame(babynames)[1:3,1:4]
+# data.frame(babynames)[1:3,1:4]
 
 namedf <- data.frame(acast(babynames,name ~ sex,sum,value.var = "n"))
 namedf$Name <- row.names(namedf)
